@@ -1,0 +1,31 @@
+{
+  "name": "@workspace/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EcoWatt smart contracts — ECOW Token, Energy Marketplace, and Staking Pool",
+  "scripts": {
+    "compile":  "hardhat compile",
+    "test":     "hardhat test",
+    "coverage": "hardhat coverage",
+    "deploy:local":       "hardhat run scripts/deploy.ts --network hardhat",
+    "deploy:sepolia":     "hardhat run scripts/deploy.ts --network sepolia",
+    "deploy:mainnet":     "hardhat run scripts/deploy.ts --network mainnet",
+    "deploy:polygon":     "hardhat run scripts/deploy.ts --network polygon",
+    "deploy:arbitrum":    "hardhat run scripts/deploy.ts --network arbitrum",
+    "deploy:base":        "hardhat run scripts/deploy.ts --network base",
+    "verify":             "hardhat verify",
+    "clean":              "hardhat clean",
+    "typecheck":          "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.12",
+    "@openzeppelin/contracts": "^5.1.0",
+    "dotenv": "^16.4.7",
+    "hardhat": "^2.22.17",
+    "hardhat-gas-reporter": "^2.2.2",
+    "solidity-coverage": "^0.8.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}
