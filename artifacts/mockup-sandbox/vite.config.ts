@@ -5,7 +5,7 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { mockupPreviewPlugin } from "./mockupPreviewPlugin";
 
-const rawPort = process.env.PORT;
+const rawPort = process.env.PORT ?? "3001";  // Default to 3001
 
 if (!rawPort) {
   throw new Error(
@@ -19,7 +19,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
+const basePath = process.env.BASE_PATH ?? "/";  // Default to "/"
 
 if (!basePath) {
   throw new Error(
@@ -32,7 +32,7 @@ export default defineConfig({
   plugins: [
     mockupPreviewPlugin(),
     react(),
-    tailwindcss(),
+    // tailwindcss(),  // Disabled due to lightningcss native module issue on Windows
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined

@@ -10,7 +10,7 @@ export default defineConfig({
   base: basePath,
   plugins: [
     react(),
-    tailwindcss(),
+    // tailwindcss(),  // Disabled due to lightningcss native module issue on Windows
   ],
   resolve: {
     alias: {
