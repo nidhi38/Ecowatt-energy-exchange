@@ -1,6 +1,6 @@
 const ALCHEMY_API_KEY = import.meta.env.VITE_ALCHEMY_API_KEY || 'b93jXjPJg0pj7ra-INml1';
 const MAINNET_URL = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
-const SEPOLIA_URL = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
+const SEPOLIA_URL  = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
 
 async function rpc(url: string, method: string, params: unknown[] = []) {
   const res = await fetch(url, {
@@ -9,6 +9,7 @@ async function rpc(url: string, method: string, params: unknown[] = []) {
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   });
   const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
   return data.result;
 }
 
@@ -39,6 +40,19 @@ export interface AlchemyBlock {
   totalDifficulty?: string;
   size: string;
   extraData?: string;
+  withdrawalsRoot?: string;
+  parentHash?: string;
+}
+
+export interface AlchemyTransfer {
+  hash: string;
+  from: string;
+  to: string | null;
+  value: string;
+  asset: string;
+  category: string;
+  blockNum: string;
+  metadata?: { blockTimestamp?: string };
 }
 
 export async function getBlock(blockNumHex: string): Promise<AlchemyBlock | null> {
@@ -54,6 +68,49 @@ export async function getEthBalance(address: string): Promise<number> {
   } catch { return 0; }
 }
 
+export async function getTxCount(address: string): Promise<number> {
+  try {
+    const hex = await rpc(MAINNET_URL, 'eth_getTransactionCount', [address, 'latest']);
+    return parseInt(hex, 16);
+  } catch { return 0; }
+}
+
+export async function getAddressAssetTransfers(address: string): Promise<AlchemyTransfer[]> {
+  try {
+    const [sent, received] = await Promise.all([
+      rpc(MAINNET_URL, 'alchemy_getAssetTransfers', [{
+        fromBlock: '0x0',
+        fromAddress: address,
+        category: ['external', 'internal', 'erc20'],
+        maxCount: '0xA',
+        withMetadata: true,
+        order: 'desc',
+      }]),
+      rpc(MAINNET_URL, 'alchemy_getAssetTransfers', [{
+        fromBlock: '0x0',
+        toAddress: address,
+        category: ['external', 'internal', 'erc20'],
+        maxCount: '0xA',
+        withMetadata: true,
+        order: 'desc',
+      }]),
+    ]);
+    const combined: AlchemyTransfer[] = [
+      ...(sent?.transfers ?? []),
+      ...(received?.transfers ?? []),
+    ];
+    combined.sort((a, b) => parseInt(b.blockNum, 16) - parseInt(a.blockNum, 16));
+    return combined.slice(0, 15);
+  } catch { return []; }
+}
+
+export async function getTokenBalances(address: string): Promise<{ contractAddress: string; tokenBalance: string }[]> {
+  try {
+    const res = await rpc(MAINNET_URL, 'alchemy_getTokenBalances', [address]);
+    return res?.tokenBalances ?? [];
+  } catch { return []; }
+}
+
 export async function getSepoliaBlockNumber(): Promise<number> {
   try {
     const hex = await rpc(SEPOLIA_URL, 'eth_blockNumber');
@@ -67,6 +124,17 @@ export async function getPendingTxCount(): Promise<number> {
     if (!hex) return Math.floor(Math.random() * 80) + 20;
     return parseInt(hex, 16);
   } catch { return Math.floor(Math.random() * 80) + 20; }
+}
+
+export async function getFeeHistory(): Promise<{ baseFees: number[]; priorityFees: number[] }> {
+  try {
+    const res = await rpc(MAINNET_URL, 'eth_feeHistory', [10, 'latest', [25, 75]]);
+    const baseFees = (res.baseFeePerGas ?? []).map((h: string) => parseFloat((parseInt(h, 16) / 1e9).toFixed(2)));
+    const priorityFees = (res.reward ?? []).map((r: string[]) =>
+      parseFloat((parseInt(r[0], 16) / 1e9).toFixed(2))
+    );
+    return { baseFees, priorityFees };
+  } catch { return { baseFees: [], priorityFees: [] }; }
 }
 
 export async function getRecentBlocks(count: number = 10): Promise<AlchemyBlock[]> {
@@ -99,15 +167,7 @@ export async function getNetworkStatus() {
       timestamp: Date.now(),
     };
   } catch {
-    return {
-      connected: false,
-      gasPrice: 0,
-      blockNumber: 0,
-      sepoliaBlock: 0,
-      pendingTx: 0,
-      tps: 0,
-      timestamp: Date.now(),
-    };
+    return { connected: false, gasPrice: 0, blockNumber: 0, sepoliaBlock: 0, pendingTx: 0, tps: 0, timestamp: Date.now() };
   }
 }
 

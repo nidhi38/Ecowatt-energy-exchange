@@ -381,6 +381,27 @@ export function seedDemoListings(userAddress: string) {
   saveStore(store);
 }
 
+export function creditEnergy(address: string, amount: number): { success: boolean; newBalance: number } {
+  const store = getStore();
+  const key = address.toLowerCase();
+  const user = store.users[key];
+  if (!user) return { success: false, newBalance: 0 };
+  user.balance += amount;
+  const transfer: TokenTransfer = {
+    id: crypto.randomUUID(),
+    from: '0x0000000000000000000000000000000000000000',
+    to: key,
+    amount: Math.round(amount * ECOW_PER_KWH),
+    txHash: '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+    blockNumber: 25021000 + Math.floor(Math.random() * 1000),
+    timestamp: Date.now(),
+    type: 'mint',
+  };
+  store.tokenTransfers.push(transfer);
+  saveStore(store);
+  return { success: true, newBalance: user.balance };
+}
+
 export function useStore(address: string | undefined) {
   const [user, setUser] = useState<User | null>(null);
   const [listings, setListings] = useState<{ buy: EnergyListing[]; sell: EnergyListing[] }>({ buy: [], sell: [] });
