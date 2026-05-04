@@ -381,6 +381,96 @@ export function seedDemoListings(userAddress: string) {
   saveStore(store);
 }
 
+export function mintTokens(address: string, amount: number): { success: boolean; message: string; newEcowBalance?: number } {
+  const store = getStore();
+  const key = address.toLowerCase();
+  const user = store.users[key];
+  if (!user) return { success: false, message: 'User not found' };
+  if (amount <= 0 || amount > 100000) return { success: false, message: 'Amount must be between 1 and 100,000 ECOW' };
+  const kwhCost = amount * 0.1;
+  if (user.balance < kwhCost) return { success: false, message: `Need ${kwhCost.toFixed(1)} kWh energy to mint. Your balance: ${user.balance.toFixed(0)} kWh` };
+  user.ecowBalance += amount;
+  user.balance -= kwhCost;
+  const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  store.tokenTransfers.push({
+    id: crypto.randomUUID(),
+    from: '0x0000000000000000000000000000000000000000',
+    to: key, amount,
+    txHash, blockNumber: 25021000 + Math.floor(Math.random() * 1000),
+    timestamp: Date.now(), type: 'mint',
+  });
+  saveStore(store);
+  return { success: true, message: `Minted ${amount.toLocaleString()} ECOW (cost: ${kwhCost.toFixed(1)} kWh)`, newEcowBalance: user.ecowBalance };
+}
+
+export function burnTokens(address: string, amount: number): { success: boolean; message: string; newEcowBalance?: number } {
+  const store = getStore();
+  const key = address.toLowerCase();
+  const user = store.users[key];
+  if (!user) return { success: false, message: 'User not found' };
+  if (amount <= 0) return { success: false, message: 'Amount must be greater than 0' };
+  if (user.ecowBalance < amount) return { success: false, message: `Insufficient ECOW. Have ${user.ecowBalance.toLocaleString()}, need ${amount.toLocaleString()}` };
+  user.ecowBalance -= amount;
+  const kwhRefund = amount * 0.08;
+  user.balance += kwhRefund;
+  const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  store.tokenTransfers.push({
+    id: crypto.randomUUID(),
+    from: key,
+    to: '0x0000000000000000000000000000000000000000',
+    amount, txHash, blockNumber: 25021000 + Math.floor(Math.random() * 1000),
+    timestamp: Date.now(), type: 'burn',
+  });
+  saveStore(store);
+  return { success: true, message: `Burned ${amount.toLocaleString()} ECOW → +${kwhRefund.toFixed(1)} kWh refunded`, newEcowBalance: user.ecowBalance };
+}
+
+export function stakeTokens(address: string, amount: number): { success: boolean; message: string; newEcowBalance?: number } {
+  const store = getStore();
+  const key = address.toLowerCase();
+  const user = store.users[key];
+  if (!user) return { success: false, message: 'User not found' };
+  if (amount <= 0) return { success: false, message: 'Amount must be greater than 0' };
+  if (user.ecowBalance < amount) return { success: false, message: `Insufficient ECOW. Have ${user.ecowBalance.toLocaleString()}, need ${amount.toLocaleString()}` };
+  user.ecowBalance -= amount;
+  const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  store.tokenTransfers.push({
+    id: crypto.randomUUID(),
+    from: key,
+    to: '0xStakingPool0000000000000000000000000000',
+    amount, txHash, blockNumber: 25021000 + Math.floor(Math.random() * 1000),
+    timestamp: Date.now(), type: 'stake',
+  });
+  saveStore(store);
+  return { success: true, message: `Staked ${amount.toLocaleString()} ECOW. Est. APY: 12%`, newEcowBalance: user.ecowBalance };
+}
+
+export function transferTokens(
+  fromAddress: string, toAddress: string, amount: number
+): { success: boolean; message: string; newEcowBalance?: number } {
+  const store = getStore();
+  const fromKey = fromAddress.toLowerCase();
+  const toKey = toAddress.toLowerCase();
+  if (fromKey === toKey) return { success: false, message: 'Cannot transfer to yourself' };
+  const from = store.users[fromKey];
+  if (!from) return { success: false, message: 'Sender not found' };
+  if (amount <= 0) return { success: false, message: 'Amount must be greater than 0' };
+  if (from.ecowBalance < amount) return { success: false, message: `Insufficient ECOW. Have ${from.ecowBalance.toLocaleString()}, need ${amount.toLocaleString()}` };
+  from.ecowBalance -= amount;
+  if (store.users[toKey]) {
+    store.users[toKey].ecowBalance += amount;
+  }
+  const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  store.tokenTransfers.push({
+    id: crypto.randomUUID(),
+    from: fromKey, to: toKey, amount, txHash,
+    blockNumber: 25021000 + Math.floor(Math.random() * 1000),
+    timestamp: Date.now(), type: 'transfer',
+  });
+  saveStore(store);
+  return { success: true, message: `Transferred ${amount.toLocaleString()} ECOW to ${toAddress.slice(0, 10)}…`, newEcowBalance: from.ecowBalance };
+}
+
 export function creditEnergy(address: string, amount: number): { success: boolean; newBalance: number } {
   const store = getStore();
   const key = address.toLowerCase();
